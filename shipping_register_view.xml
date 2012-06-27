@@ -85,6 +85,7 @@
                                 <field name="billed_weight_uom" />
                                 <field name="total_amount" />
                                 <field name="total_amount_currency" />
+				<field name="xml_msgs" widget="one2many_list" nolabel="1" colspan="4" />
                             </page>
                         </notebook>
                         <field name="state" />
@@ -97,6 +98,9 @@
                         <button name="accept_price" string="Accept"
                             type="object" colspan="2"
                             attrs="{'invisible':[('state', '!=', 'confirmed')]}" />
+                        <button name="do_shipping_void" string="Cancel"
+                            type="object" colspan="2"
+                            attrs="{'invisible':[('state', '!=', 'accepted')]}" />
                     </group>
                     <newline />
                     <field name="package_det" nolabel="1" string="Packages"
