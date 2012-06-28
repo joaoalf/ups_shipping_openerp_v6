@@ -362,16 +362,16 @@ class UpsShippingRegister(osv.osv):
             except Exception, error:
                 xml_msgs = [(0, 0, {'name': 'AcceptShipmentRequest',
                                     'type': 'request',
-                                    'msg': request}),
+                                    'msg': error[1]}),
                             (0, 0, {'name': 'AcceptShipmentResponse',
                                     'type': 'response',
-                                    'msg': etree.tostring(response, pretty_print=True)})]
+                                    'msg': etree.tostring(error[2], pretty_print=True)})]
 
 
                 self.write(cursor, user, shipping_register_record.id, 
                            {'xml_msgs': xml_msgs}, context)
 
-                raise osv.except_osv(('Error : '), ('%s' % error))
+                raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
             packages = []
             for package in response.ShipmentResults.PackageResults:
@@ -417,8 +417,10 @@ class UpsShippingRegister(osv.osv):
         packages_obj = self.pool.get('ups.shippingregister.package')
         for shipping_register_record in self.browse(cursor, user, ids, context):
             # writing image to digest so that it can be used.
-            shipment_void = ShipmentVoid.void_shipment_request_type(\
-                shipping_register_record.digest)
+            shipment_void = ShipmentVoid.void_shipment_request_type(
+                shipping_register_record.name,
+                [p.tracking_no for p in shipping_register_record.package_det]
+                )
                 
             shipment_void_instance = self.get_ups_api(cursor, user, 
                 'void', context)
@@ -430,15 +432,15 @@ class UpsShippingRegister(osv.osv):
             except Exception, error:
                 xml_msgs = [(0, 0, {'name': 'VoidShipmentRequest',
                                     'type': 'request',
-                                    'msg': error.request}),
+                                    'msg': error[1]}),
                             (0, 0, {'name': 'VoidShipmentResponse',
                                     'type': 'response',
-                                    'msg': etree.tostring(error.response, pretty_print=True)})]
+                                    'msg': etree.tostring(error[2], pretty_print=True)})]
 
                 self.write(cursor, user, shipping_register_record.id, 
                            {'xml_msgs': xml_msgs}, context)
 
-                raise osv.except_osv(('Error : '), ('%s' % error))
+                raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
             packages = []
             for package in response.ShipmentResults.PackageResults:
