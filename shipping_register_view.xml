@@ -61,7 +61,7 @@
                     <field name="name" />
                     <field name="type" />
                     <field name="shipping_register_rel" />
-                    <field name="msg" />
+                    <field name="msg_bin" />
                 </tree>
             </field>
         </record>

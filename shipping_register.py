@@ -7,6 +7,7 @@
     
     :license: AGPL, see LICENSE for more details.
 """
+import base64
 from ups import ShipmentConfirm, ShipmentAccept, ShipmentVoid
 from osv import osv, fields
 from lxml import etree
@@ -55,6 +56,14 @@ class UpsMessage(osv.osv):
     """
 
     _name = 'ups.message'
+
+    def _text2bin(self, cr, uid, ids, field_name, arg, context):
+        res = {}
+        for m in self.browse(cr, uid, ids, context):
+            res[m.id] = base64.b64encode(m.msg)
+
+        return res
+
     _columns = {
         'name': fields.char('Message name', size=50, readonly=True),
         'type': fields.selection(MESSAGE_TYPE_SELECTION,
@@ -62,7 +71,8 @@ class UpsMessage(osv.osv):
                                  type='selection',
                                  readonly=True),
         'msg': fields.text('XML Message', readonly=True),
-        'shipping_register_rel': fields.many2one('ups.shippingregister', 'Relation Field',)
+        'msg_bin': fields.function(_text2bin, string='XML Message', type='binary', method=True, readonly=True),
+        'shipping_register_rel': fields.many2one('ups.shippingregister', 'Relation Field', readonly=True)
     }
 
 UpsMessage()
@@ -275,15 +285,15 @@ class UpsShippingRegister(osv.osv):
             except Exception, error:
                 xml_msgs = [(0, 0, {'name': 'ConfirmShipmentRequest',
                                     'type': 'request',
-                                    'msg': error.args[1]}),
+                                    'msg': error[1]}),
                             (0, 0, {'name': 'ConfirmShipmentResponse',
                                     'type': 'response',
-                                    'msg': etree.tostring(error.args[2], pretty_print=True)})]
+                                    'msg': etree.tostring(error[2], pretty_print=True)})]
 
                 self.write(cursor, user, shipment_record.id,
                            {'xml_msgs': xml_msgs}, context)
                 
-                raise osv.except_osv(('Error : '), ('%s' % error.args[0]))
+                raise osv.except_osv(('Error : '), ('%s' % error[0]))
             # Now store values in the register
                 
             currency_id = currency_obj.search(cursor, user,
