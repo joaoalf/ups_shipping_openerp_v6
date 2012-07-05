@@ -22,6 +22,9 @@
                             attrs="{'readonly':[('state','!=','draft')]}" />
                         <field name="width"
                             attrs="{'readonly':[('state','!=','draft')]}" />
+                        <separator string="Service Options" colspan="4" />
+                        <field name="insured_value"
+                            attrs="{'readonly':[('state','!=','draft')]}" />
                         <separator string="Description" colspan="4" />
                         <field name="description"
                             attrs="{'readonly':[('state','!=','draft')]}" 
