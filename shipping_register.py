@@ -139,6 +139,8 @@ class UpsShippingRegister(osv.osv):
             package_weight = ShipmentConfirm.package_weight_type(
                 Weight=str(package.weight), Code=ups_uoms[0], 
                 Description=package.description or 'None')
+            package_service_options = ShipmentConfirm.package_service_options_type(
+                ShipmentConfirm.insured_value_type(MonetaryValue=str(package.insured_value) or ''))
             if package.length and package.height and package.width:
                 package_dimension = ShipmentConfirm.dimensions_type(
                     Code=ups_uoms[1], Length=str(package.length),
@@ -150,7 +152,8 @@ class UpsShippingRegister(osv.osv):
             package_container = ShipmentConfirm.package_type(
                 package_type,
                 package_weight,
-                package_dimension)
+                package_dimension,
+                package_service_options)
             packages.append(package_container)
         shipment_service = ShipmentConfirm.shipment_service_option_type(
             SaturdayDelivery=1 if register_record.saturday_delivery \
@@ -574,6 +577,7 @@ class UpsShippingRegisterPackage(osv.osv):
         'state':fields.selection(STATE_SELECTION,
             string='State', type='selection', readonly=True),
         'description': fields.text('Description'),
+        'insured_value': fields.float('Insured Value', digits=(10, 2))
     }
     
     _defaults = {
