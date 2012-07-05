@@ -16,7 +16,7 @@ STATE_SELECTION = [
     ('draft', 'Draft (Not Processed)'),
     ('confirmed', 'Confirmed'),
     ('accepted', 'Accepted'),
-    ('cancelled', 'Cancelled'),
+    ('canceled', 'Canceled'),
 ]
 
 MESSAGE_TYPE_SELECTION = [
@@ -452,24 +452,26 @@ class UpsShippingRegister(osv.osv):
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
-            packages = []
-            for package in response.ShipmentResults.PackageResults:
-                packages.append(package)
-            # UPS does not give the information as to which package 
-            # got which label, Here we are just assuming that they 
-            # came in order to assign the label
-            package_record_ids = [pkg.id for pkg in \
-                shipping_register_record.package_det]
-            assert len(package_record_ids) == len(packages)
-            for package in packages:
-                register_vals = {
-                    'tracking_no': package.TrackingNumber.pyval,
-                    'label_image': package.LabelImage.GraphicImage.pyval,
-                    'state': 'accepted'
-                }
-                packages_obj.write(
-                    cursor, user, package_record_ids[packages.index(package)],
-                    register_vals, context)
+            try:
+                packages = []
+                for package in response.PackageLevelResults:
+                    packages.append(package)
+                # UPS does not give the information as to which package 
+                # got which label, Here we are just assuming that they 
+                # came in order to assign the label
+                package_record_ids = [pkg.id for pkg in \
+                                          shipping_register_record.package_det]
+                assert len(package_record_ids) == len(packages)
+                for package in packages:
+                    register_vals = {
+                        'state': 'canceled'
+                        }
+                    packages_obj.write(
+                        cursor, user, package_record_ids[packages.index(package)],
+                        register_vals, context)
+            except AttributeError:
+                pass
+
             # changing state to accepted of shipping register record...
             # and addind the request and return messages.
             xml_msgs = [(0, 0, {'name': 'VoidShipmentRequest',
@@ -480,7 +482,7 @@ class UpsShippingRegister(osv.osv):
                                 'msg': etree.tostring(response, pretty_print=True)})]
             
             self.write(cursor, user, shipping_register_record.id, 
-                {'state': 'cancelled',
+                {'state': 'canceled',
                  'xml_msgs': xml_msgs}, context)
         return True
 
