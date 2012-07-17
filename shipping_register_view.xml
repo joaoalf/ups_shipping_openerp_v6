@@ -78,7 +78,7 @@
                     <field name="name" />
                     <field name="type" />
                     <field name="shipping_register_rel" />
-		    <newline />
+                    <newline />
                     <field name="msg" colspan="4" />
                 </tree>
             </field>
@@ -117,11 +117,11 @@
                                 <field name="billed_weight_uom" />
                                 <field name="total_amount" />
                                 <field name="total_amount_currency" />
-				<field name="xml_msgs" widget="one2many_list" nolabel="1" colspan="4" />
+                                <field name="xml_msgs" widget="one2many_list" nolabel="1" colspan="4" />
                             </page>
                         </notebook>
                         <field name="state" colspan="4"/>
-			<newline />
+                        <newline />
                         <button name="do_shipping_request"
                             string="Request" type="object" colspan="4"
                             attrs="{'invisible':[('state', '!=', 'draft')]}" />
