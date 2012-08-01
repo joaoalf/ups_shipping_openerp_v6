@@ -58,6 +58,7 @@ class UpsMessage(osv.osv):
     """
 
     _name = 'ups.message'
+    _description = __doc__
 
     def _text2bin(self, cr, uid, ids, field_name, arg, context):
         res = {}
@@ -72,8 +73,8 @@ class UpsMessage(osv.osv):
                                  string='Message type',
                                  type='selection',
                                  readonly=True),
-        'msg': fields.text('XML Message', readonly=True),
-        'msg_bin': fields.function(_text2bin, string='XML Message',
+        'message': fields.text('XML Message', readonly=True),
+        'message_bin': fields.function(_text2bin, string='XML Message',
                                    type='binary', method=True, readonly=True),
         'shipping_register_rel': fields.many2one('ups.shippingregister',
                                                  'Relation Field',
@@ -295,16 +296,16 @@ class UpsShippingRegister(osv.osv):
                 request, response = shipment_confirm_instance.request(
                     ship_confirm, return_request=True)
             except Exception, error:
-                xml_msgs = [(0, 0, {'name': 'ConfirmShipmentRequest',
-                                    'type': 'request',
-                                    'msg': error[1]}),
-                            (0, 0, {'name': 'ConfirmShipmentResponse',
-                                    'type': 'response',
-                                    'msg': etree.tostring(error[2],
-                                                          pretty_print=True)})]
+                xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
+                                        'type': 'request',
+                                        'message': error[1]}),
+                                (0, 0, {'name': 'ConfirmShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            error[2], pretty_print=True)})]
 
                 self.write(cursor, user, shipment_record.id,
-                           {'xml_msgs': xml_msgs}, context)
+                           {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
             # Now store values in the register
@@ -318,13 +319,13 @@ class UpsShippingRegister(osv.osv):
 
             before = ShipmentConfirm.extract_digest(response)
 
-            xml_msgs = [(0, 0, {'name': 'ConfirmShipmentRequest',
-                                'type': 'request',
-                                'msg': request}),
-                        (0, 0, {'name': 'ConfirmShipmentResponse',
-                                'type': 'response',
-                                'msg': etree.tostring(response,
-                                                      pretty_print=True)})]
+            xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
+                                    'type': 'request',
+                                    'message': request}),
+                            (0, 0, {'name': 'ConfirmShipmentResponse',
+                                    'type': 'response',
+                                    'message': etree.tostring(
+                                        response, pretty_print=True)})]
 
             self.write(cursor, user, shipment_record.id,
                 {
@@ -336,7 +337,7 @@ class UpsShippingRegister(osv.osv):
                     'total_amount_currency': currency_id and \
                                                 currency_id[0] or False,
                     'digest': ShipmentConfirm.extract_digest(response),
-                    'xml_msgs': xml_msgs,
+                    'xml_messages': xml_messages,
                     'state': 'confirmed'
                     }, context)
 
@@ -381,21 +382,20 @@ class UpsShippingRegister(osv.osv):
                                                         'accept', context)
 
             try:
-                #response = shipment_accept_instance.request(shipment_accept)
                 request, response = shipment_accept_instance.request(
                     shipment_accept, return_request=True)
 
             except Exception, error:
-                xml_msgs = [(0, 0, {'name': 'AcceptShipmentRequest',
-                                    'type': 'request',
-                                    'msg': error[1]}),
-                            (0, 0, {'name': 'AcceptShipmentResponse',
-                                    'type': 'response',
-                                    'msg': etree.tostring(error[2],
-                                                          pretty_print=True)})]
+                xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
+                                        'type': 'request',
+                                        'message': error[1]}),
+                                (0, 0, {'name': 'AcceptShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            error[2], pretty_print=True)})]
 
                 self.write(cursor, user, shipping_register_record.id,
-                           {'xml_msgs': xml_msgs}, context)
+                           {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
@@ -419,17 +419,17 @@ class UpsShippingRegister(osv.osv):
                     register_vals, context)
             # changing state to accepted of shipping register record...
             # and addind the request and return messages.
-            xml_msgs = [(0, 0, {'name': 'AcceptShipmentRequest',
-                                'type': 'request',
-                                'msg': request}),
-                        (0, 0, {'name': 'AcceptShipmentResponse',
-                                'type': 'response',
-                                'msg': etree.tostring(response,
-                                                      pretty_print=True)})]
+            xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
+                                    'type': 'request',
+                                    'message': request}),
+                            (0, 0, {'name': 'AcceptShipmentResponse',
+                                    'type': 'response',
+                                    'message': etree.tostring(
+                                        response, pretty_print=True)})]
 
             self.write(cursor, user, shipping_register_record.id,
                 {'state': 'accepted',
-                 'xml_msgs': xml_msgs}, context)
+                 'xml_messages': xml_messages}, context)
         return True
 
     def do_shipping_void(self, cursor, user, ids, context=None):
@@ -441,6 +441,7 @@ class UpsShippingRegister(osv.osv):
         :param context: Context(no direct use).
         :return: True
         '''
+        
         packages_obj = self.pool.get('ups.shippingregister.package')
         for shipping_register_record in self.browse(cursor, user, ids,
                                                     context):
@@ -454,21 +455,20 @@ class UpsShippingRegister(osv.osv):
                                                       context)
 
             try:
-                #response = shipment_accept_instance.request(shipment_accept)
                 request, response = shipment_void_instance.request(
                     shipment_void, return_request=True)
 
             except Exception, error:
-                xml_msgs = [(0, 0, {'name': 'VoidShipmentRequest',
-                                    'type': 'request',
-                                    'msg': error[1]}),
-                            (0, 0, {'name': 'VoidShipmentResponse',
-                                    'type': 'response',
-                                    'msg': etree.tostring(error[2],
-                                                          pretty_print=True)})]
+                xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
+                                        'type': 'request',
+                                        'message': error[1]}),
+                                (0, 0, {'name': 'VoidShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            error[2], pretty_print=True)})]
 
                 self.write(cursor, user, shipping_register_record.id,
-                           {'xml_msgs': xml_msgs}, context)
+                           {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
@@ -495,17 +495,17 @@ class UpsShippingRegister(osv.osv):
 
             # changing state to accepted of shipping register record...
             # and addind the request and return messages.
-            xml_msgs = [(0, 0, {'name': 'VoidShipmentRequest',
-                                'type': 'request',
-                                'msg': request}),
-                        (0, 0, {'name': 'VoidShipmentResponse',
-                                'type': 'response',
-                                'msg': etree.tostring(response,
-                                                      pretty_print=True)})]
+            xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
+                                    'type': 'request',
+                                    'message': request}),
+                            (0, 0, {'name': 'VoidShipmentResponse',
+                                    'type': 'response',
+                                    'message': etree.tostring(
+                                        response, pretty_print=True)})]
 
             self.write(cursor, user, shipping_register_record.id,
                        {'state': 'canceled',
-                 'xml_msgs': xml_msgs}, context)
+                 'xml_messages': xml_messages}, context)
         return True
 
     _columns = {
@@ -524,10 +524,9 @@ class UpsShippingRegister(osv.osv):
         'saturday_delivery': fields.boolean('Saturday Delivery?'),
         'description': fields.text('Description'),
         'state': fields.selection(STATE_SELECTION, 'Status', readonly=True,),
-        'xml_msgs': fields.one2many('ups.message',
-                                    'shipping_register_rel',
-                                    'XML Messages'),
-
+        'xml_messages': fields.one2many('ups.message',
+                                        'shipping_register_rel',
+                                        'XML Messages'),
         # The following are UPS filled information
         'billed_weight': fields.float('Billed Weight', digits=(10, 4),
             readonly=True, help=(

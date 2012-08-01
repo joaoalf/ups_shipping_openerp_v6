@@ -64,7 +64,7 @@
                     <field name="name" />
                     <field name="type" />
                     <field name="shipping_register_rel" />
-                    <field name="msg_bin" />
+                    <field name="message_bin" />
                 </tree>
             </field>
         </record>
@@ -79,7 +79,7 @@
                     <field name="type" />
                     <field name="shipping_register_rel" />
                     <newline />
-                    <field name="msg" colspan="4" />
+                    <field name="message" colspan="4" />
                 </tree>
             </field>
         </record>
@@ -117,7 +117,12 @@
                                 <field name="billed_weight_uom" />
                                 <field name="total_amount" />
                                 <field name="total_amount_currency" />
-                                <field name="xml_msgs" widget="one2many_list" nolabel="1" colspan="4" />
+                                <field 
+				    name="xml_messages" 
+				    widget="one2many_list" 
+				    nolabel="1" 
+				    colspan="4"
+				    groups="base.group_extended" />
                             </page>
                         </notebook>
                         <field name="state" colspan="4"/>
