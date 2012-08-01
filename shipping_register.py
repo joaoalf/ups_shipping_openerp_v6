@@ -16,7 +16,7 @@ STATE_SELECTION = [
     ('draft', 'Draft (Not Processed)'),
     ('confirmed', 'Confirmed'),
     ('accepted', 'Accepted'),
-    ('canceled', 'Canceled'),
+    ('cancelled', 'Cancelled'),
 ]
 
 MESSAGE_TYPE_SELECTION = [
@@ -441,7 +441,7 @@ class UpsShippingRegister(osv.osv):
         :param context: Context(no direct use).
         :return: True
         '''
-        
+
         packages_obj = self.pool.get('ups.shippingregister.package')
         for shipping_register_record in self.browse(cursor, user, ids,
                                                     context):
@@ -484,7 +484,7 @@ class UpsShippingRegister(osv.osv):
                 assert len(package_record_ids) == len(packages)
                 for package in packages:
                     register_vals = {
-                        'state': 'canceled'
+                        'state': 'cancelled'
                         }
                     packages_obj.write(
                         cursor, user,
@@ -504,7 +504,7 @@ class UpsShippingRegister(osv.osv):
                                         response, pretty_print=True)})]
 
             self.write(cursor, user, shipping_register_record.id,
-                       {'state': 'canceled',
+                       {'state': 'cancelled',
                  'xml_messages': xml_messages}, context)
         return True
 
