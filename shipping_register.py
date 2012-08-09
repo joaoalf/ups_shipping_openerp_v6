@@ -8,7 +8,7 @@
     :license: AGPL, see LICENSE for more details.
 """
 import base64
-from ups import ShipmentConfirm, ShipmentAccept, ShipmentVoid
+from ups import ShipmentConfirm, ShipmentAccept, ShipmentVoid, PyUPSException
 from osv import osv, fields
 from lxml import etree
 
@@ -60,10 +60,13 @@ class UpsMessage(osv.osv):
     _name = 'ups.message'
     _description = __doc__
 
-    def _text2bin(self, cr, uid, ids, field_name, arg, context):
+    def _text2bin(self, cursor, user, ids, field_name, arg, context):
+        """Create a binary representation of the xml message so that we can be
+        able to download it"""
+
         res = {}
-        for m in self.browse(cr, uid, ids, context):
-            res[m.id] = base64.b64encode(m.msg)
+        for message in self.browse(cursor, user, ids, context):
+            res[message.id] = base64.b64encode(message.message)
 
         return res
 
@@ -116,14 +119,27 @@ class UpsShippingRegister(osv.osv):
                 ('''Please check your license details for UPS account.
                     \nSome details may be missing.'''))
         if call == 'confirm':
-            return ShipmentConfirm(ups_credentials[0],
-                ups_credentials[1], ups_credentials[2], ups_credentials[3])
+            call_method = ShipmentConfirm
         elif call == 'accept':
-            return ShipmentAccept(ups_credentials[0],
-                ups_credentials[1], ups_credentials[2], ups_credentials[3])
+            call_method = ShipmentAccept
+        elif call == 'void':
+            call_method = ShipmentVoid
         else:
-            return ShipmentVoid(ups_credentials[0],
-                ups_credentials[1], ups_credentials[2], ups_credentials[3])
+            call_method = None
+
+        if call_method:
+            try:
+                return call_method(ups_credentials[0],
+                                   ups_credentials[1],
+                                   ups_credentials[2],
+                                   ups_credentials[3],
+                                   ups_credentials[4])
+            except TypeError:
+                ## Older PyUPS version
+                return call_method(ups_credentials[0],
+                                   ups_credentials[1],
+                                   ups_credentials[2],
+                                   ups_credentials[3])
 
     def _add_packages(self, cursor, user, register_id, context=None):
         """
@@ -293,19 +309,25 @@ class UpsShippingRegister(osv.osv):
                 'confirm', context)
 
             try:
-                request, response = shipment_confirm_instance.request(
-                    ship_confirm, return_request=True)
-            except Exception, error:
-                xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
-                                        'type': 'request',
-                                        'message': error[1]}),
-                                (0, 0, {'name': 'ConfirmShipmentResponse',
-                                        'type': 'response',
-                                        'message': etree.tostring(
-                                            error[2], pretty_print=True)})]
+                response = shipment_confirm_instance.request(
+                    ship_confirm)
+                if isinstance(response, tuple):
+                    request = response[0]
+                    response = response[1]
 
-                self.write(cursor, user, shipment_record.id,
-                           {'xml_messages': xml_messages}, context)
+            except PyUPSException, error:
+                if company_obj.get_ups_save_xml(cursor, user, context):
+                    # TODO: We need a better error exception here.
+                    xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
+                                            'type': 'request',
+                                            'message': error[1]}),
+                                    (0, 0, {'name': 'ConfirmShipmentResponse',
+                                            'type': 'response',
+                                            'message': etree.tostring(
+                                                error[2], pretty_print=True)})]
+
+                    self.write(cursor, user, shipment_record.id,
+                               {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
             # Now store values in the register
@@ -319,13 +341,16 @@ class UpsShippingRegister(osv.osv):
 
             before = ShipmentConfirm.extract_digest(response)
 
-            xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
-                                    'type': 'request',
-                                    'message': request}),
-                            (0, 0, {'name': 'ConfirmShipmentResponse',
-                                    'type': 'response',
-                                    'message': etree.tostring(
-                                        response, pretty_print=True)})]
+            if company_obj.get_ups_save_xml(cursor, user, context):
+                xml_messages = [(0, 0, {'name': 'ConfirmShipmentRequest',
+                                        'type': 'request',
+                                        'message': request}),
+                                (0, 0, {'name': 'ConfirmShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            response, pretty_print=True)})]
+            else:
+                xml_messages = []
 
             self.write(cursor, user, shipment_record.id,
                 {
@@ -372,6 +397,8 @@ class UpsShippingRegister(osv.osv):
         :return: True
         '''
         packages_obj = self.pool.get('ups.shippingregister.package')
+        company_obj = self.pool.get('res.company')
+
         for shipping_register_record in self.browse(cursor, user, ids,
                                                     context):
             # writing image to digest so that it can be used.
@@ -382,20 +409,25 @@ class UpsShippingRegister(osv.osv):
                                                         'accept', context)
 
             try:
-                request, response = shipment_accept_instance.request(
-                    shipment_accept, return_request=True)
+                response = shipment_accept_instance.request(
+                    shipment_accept)
+                if isinstance(response, tuple):
+                    request = response[0]
+                    response = response[1]
 
-            except Exception, error:
-                xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
-                                        'type': 'request',
-                                        'message': error[1]}),
-                                (0, 0, {'name': 'AcceptShipmentResponse',
-                                        'type': 'response',
-                                        'message': etree.tostring(
-                                            error[2], pretty_print=True)})]
+            except PyUPSException, error:
+                if company_obj.get_ups_save_xml(cursor, user, context):
+                    # TODO: We need a better error exception here.
+                    xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
+                                            'type': 'request',
+                                            'message': error[1]}),
+                                    (0, 0, {'name': 'AcceptShipmentResponse',
+                                            'type': 'response',
+                                            'message': etree.tostring(
+                                                error[2], pretty_print=True)})]
 
-                self.write(cursor, user, shipping_register_record.id,
-                           {'xml_messages': xml_messages}, context)
+                    self.write(cursor, user, shipping_register_record.id,
+                               {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
@@ -418,14 +450,16 @@ class UpsShippingRegister(osv.osv):
                     cursor, user, package_record_ids[packages.index(package)],
                     register_vals, context)
             # changing state to accepted of shipping register record...
-            # and addind the request and return messages.
-            xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
-                                    'type': 'request',
-                                    'message': request}),
-                            (0, 0, {'name': 'AcceptShipmentResponse',
-                                    'type': 'response',
-                                    'message': etree.tostring(
-                                        response, pretty_print=True)})]
+            if company_obj.get_ups_save_xml(cursor, user, context):
+                xml_messages = [(0, 0, {'name': 'AcceptShipmentRequest',
+                                        'type': 'request',
+                                        'message': request}),
+                                (0, 0, {'name': 'AcceptShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            response, pretty_print=True)})]
+            else:
+                xml_messages = []
 
             self.write(cursor, user, shipping_register_record.id,
                 {'state': 'accepted',
@@ -443,6 +477,8 @@ class UpsShippingRegister(osv.osv):
         '''
 
         packages_obj = self.pool.get('ups.shippingregister.package')
+        company_obj = self.pool.get('res.company')
+
         for shipping_register_record in self.browse(cursor, user, ids,
                                                     context):
             # writing image to digest so that it can be used.
@@ -455,20 +491,25 @@ class UpsShippingRegister(osv.osv):
                                                       context)
 
             try:
-                request, response = shipment_void_instance.request(
-                    shipment_void, return_request=True)
+                response = shipment_void_instance.request(
+                    shipment_void)
+                if isinstance(response, tuple):
+                    request = response[0]
+                    response = response[1]
 
-            except Exception, error:
-                xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
-                                        'type': 'request',
-                                        'message': error[1]}),
-                                (0, 0, {'name': 'VoidShipmentResponse',
-                                        'type': 'response',
-                                        'message': etree.tostring(
-                                            error[2], pretty_print=True)})]
+            except PyUPSException, error:
+                if company_obj.get_ups_save_xml(cursor, user, context):
+                    # TODO: We need a better exception handling here.
+                    xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
+                                            'type': 'request',
+                                            'message': error[1]}),
+                                    (0, 0, {'name': 'VoidShipmentResponse',
+                                            'type': 'response',
+                                            'message': etree.tostring(
+                                                error[2], pretty_print=True)})]
 
-                self.write(cursor, user, shipping_register_record.id,
-                           {'xml_messages': xml_messages}, context)
+                    self.write(cursor, user, shipping_register_record.id,
+                               {'xml_messages': xml_messages}, context)
 
                 raise osv.except_osv(('Error : '), ('%s' % error[0]))
 
@@ -494,14 +535,16 @@ class UpsShippingRegister(osv.osv):
                 pass
 
             # changing state to accepted of shipping register record...
-            # and addind the request and return messages.
-            xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
-                                    'type': 'request',
-                                    'message': request}),
-                            (0, 0, {'name': 'VoidShipmentResponse',
-                                    'type': 'response',
-                                    'message': etree.tostring(
-                                        response, pretty_print=True)})]
+            if company_obj.get_ups_save_xml(cursor, user, context):
+                xml_messages = [(0, 0, {'name': 'VoidShipmentRequest',
+                                        'type': 'request',
+                                        'message': request}),
+                                (0, 0, {'name': 'VoidShipmentResponse',
+                                        'type': 'response',
+                                        'message': etree.tostring(
+                                            response, pretty_print=True)})]
+            else:
+                xml_messages = []
 
             self.write(cursor, user, shipping_register_record.id,
                        {'state': 'cancelled',
