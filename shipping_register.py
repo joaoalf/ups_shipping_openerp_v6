@@ -53,8 +53,7 @@ UpsCodes()
 
 
 class UpsMessage(osv.osv):
-    """Model to record all XML messages exchanged between the client and
-    the server.
+    """Model to record all UPS XML messages.
     """
 
     _name = 'ups.message'
